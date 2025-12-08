@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Admin documents. Only the admin themselves can read/write their own profile.
+    match /admins/{adminId} {
+      allow read, write: if request.auth != null && request.auth.uid == adminId;
+    }
+
+    // Employee documents. Only the authenticated employee can read or update
+    // their own document. Admins may create employee docs via server SDK.
+    match /employees/{employeeId} {
+      allow read, write: if request.auth != null && request.auth.uid == employeeId;
+    }
+
+    // Settings documents (geofence, wifi). Only admins can read and write.
+    match /settings/{docId} {
+      allow read, write: if request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Attendance records: Only the owner employee or an admin can read/write.
+    match /attendance/{employeeId} {
+      match /records/{recordId} {
+        allow read, write: if request.auth != null && (
+          request.auth.uid == employeeId ||
+          exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        );
+      }
+    }
+  }
+}

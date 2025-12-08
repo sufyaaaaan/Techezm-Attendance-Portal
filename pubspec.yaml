@@ -1,0 +1,45 @@
+name: techezm_attendance_portal
+description: A Flutter attendance portal app for Techezm with admin and employee roles.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Firebase core and authentication
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
+  # State management
+  flutter_riverpod: ^3.0.0
+  # Location and geofencing
+  geolocator: ^14.0.2
+  # For Wi‑Fi name and network info
+  network_info_plus: ^7.0.0
+  # Permissions handling (required for location and Wi‑Fi on some platforms)
+  permission_handler: ^12.0.1
+  # Date formatting
+  intl: ^0.18.1
+  # UI utilities
+  flutter_spinkit: ^5.2.0
+  google_maps_flutter: ^2.14.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  flutter_launcher_icons: ^0.13.1
+  csv: ^5.1.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/app_icon.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/app_icon.png"

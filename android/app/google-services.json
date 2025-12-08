@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1003605818746",
+    "project_id": "techezm-attendace-portal",
+    "storage_bucket": "techezm-attendace-portal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1003605818746:android:634df011ff2cf5122e2ac3",
+        "android_client_info": {
+          "package_name": "com.example.techezm_attendance_portal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBGCuZiHsCy1GeN28gyLlQwZT9sUbBEjoQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
