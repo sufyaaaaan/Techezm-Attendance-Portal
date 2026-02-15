@@ -38,96 +38,122 @@ class AttendanceHistoryScreen extends ConsumerWidget {
               );
             }
 
-            return ListView.builder(
-              itemCount: records.length,
-              padding: const EdgeInsets.only(bottom: 20),
-              itemBuilder: (context, index) {
-                final r = records[index];
+            return RefreshIndicator(
+              onRefresh: () async {
+                return ref.refresh(attendanceRecordsProvider);
+              },
+              child: ListView.builder(
+                itemCount: records.length,
+                padding: const EdgeInsets.only(bottom: 20),
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemBuilder: (context, index) {
+                  final r = records[index];
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border(
-                      left: BorderSide(
-                        color: const Color(0xff0a3d62),
-                        width: 4,
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border(
+                        left: BorderSide(
+                          color: const Color(0xff0a3d62),
+                          width: 4,
+                        ),
                       ),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12.withOpacity(0.05),
-                        blurRadius: 6,
-                        offset: const Offset(2, 2),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Date Title
-                        Text(
-                          df.format(r.date),
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // 🔹 Entry (blue)
-                        _infoRow(
-                          Icons.login,
-                          "Entry",
-                          r.entryTime != null ? tf.format(r.entryTime!) : "--",
-                          iconColor: const Color(0xff0a3d62),
-                        ),
-
-                        // 🔸 Exit (orange)
-                        _infoRow(
-                          Icons.logout,
-                          "Exit",
-                          r.exitTime != null ? tf.format(r.exitTime!) : "--",
-                          iconColor: Colors.orange,
-                        ),
-
-                        // 🟣 Total Hours (purple)
-                        _infoRow(
-                          Icons.timer,
-                          "Total Hours",
-                          r.totalHours != null
-                              ? r.totalHours!.toStringAsFixed(2)
-                              : "--",
-                          iconColor: Colors.deepPurple,
-                        ),
-
-                        // 🟢 / 🔴 Inside Area
-                        _infoRow(
-                          Icons.my_location,
-                          "Inside Area",
-                          r.insideArea ? "Yes" : "No",
-                          iconColor: r.insideArea ? Colors.green : Colors.red,
-                          valueColor:
-                          r.insideArea ? Colors.green : Colors.red,
-                        ),
-
-                        // 🟢 / 🔴 WiFi matched
-                        _infoRow(
-                          Icons.wifi,
-                          "Wi-Fi Matched",
-                          r.wifiMatched ? "Yes" : "No",
-                          iconColor: r.wifiMatched ? Colors.green : Colors.red,
-                          valueColor:
-                          r.wifiMatched ? Colors.green : Colors.red,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12.withOpacity(0.05),
+                          blurRadius: 6,
+                          offset: const Offset(2, 2),
                         ),
                       ],
                     ),
-                  ),
-                );
-              },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Date Title
+                          Text(
+                            df.format(r.date),
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 🔹 Entry (blue)
+                          _buildInfoRow(
+                            Icons.login,
+                            "Entry",
+                            r.entryTime != null ? tf.format(r.entryTime!) : "--",
+                            iconColor: const Color(0xff0a3d62),
+                          ),
+
+                          // 🔸 Exit (orange)
+                          _buildInfoRow(
+                            Icons.logout,
+                            "Exit",
+                            r.exitTime != null ? tf.format(r.exitTime!) : "--",
+                            iconColor: Colors.orange,
+                          ),
+
+                          // 🟣 Total Hours (purple)
+                          _buildInfoRow(
+                            Icons.timer,
+                            "Total Hours",
+                            r.totalHours != null
+                                ? r.totalHours!.toStringAsFixed(2)
+                                : "--",
+                            iconColor: Colors.deepPurple,
+                          ),
+
+                          // ☕ Break Start
+                          _buildInfoRow(
+                            Icons.coffee,
+                            "Break Start",
+                            r.breakExitTime != null
+                                ? tf.format(r.breakExitTime!)
+                                : "--",
+                            iconColor: Colors.brown,
+                          ),
+
+                          // ☕ Break End
+                          _buildInfoRow(
+                            Icons.coffee_outlined,
+                            "Break End",
+                            r.breakReturnTime != null
+                                ? tf.format(r.breakReturnTime!)
+                                : "--",
+                            iconColor: Colors.brown[300]!,
+                          ),
+
+                          // 🟢 / 🔴 Inside Area
+                          _buildInfoRow(
+                            Icons.my_location,
+                            "Inside Area",
+                            r.insideArea ? "Yes" : "No",
+                            iconColor: r.insideArea ? Colors.green : Colors.red,
+                            valueColor:
+                                r.insideArea ? Colors.green : Colors.red,
+                          ),
+
+                          // 🟢 / 🔴 WiFi matched
+                          _buildInfoRow(
+                            Icons.wifi,
+                            "Wi-Fi Matched",
+                            r.wifiMatched ? "Yes" : "No",
+                            iconColor: r.wifiMatched ? Colors.green : Colors.red,
+                            valueColor:
+                                r.wifiMatched ? Colors.green : Colors.red,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             );
           },
 
@@ -147,13 +173,13 @@ class AttendanceHistoryScreen extends ConsumerWidget {
   // -------------------------------
   // Icon Row Helper
   // -------------------------------
-  Widget _infoRow(
+  Widget _buildInfoRow(
       IconData icon,
       String label,
       String value, {
-        Color iconColor = Colors.black87,
-        Color valueColor = Colors.black87,
-      }) {
+      Color iconColor = Colors.black87,
+      Color valueColor = Colors.black87,
+    }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(

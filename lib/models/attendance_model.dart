@@ -8,6 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AttendanceRecord {
   final DateTime date;
   final DateTime? entryTime;
+  final DateTime? breakExitTime;
+  final DateTime? breakReturnTime;
+
   final DateTime? exitTime;
   final bool insideArea;
   final bool wifiMatched;
@@ -20,6 +23,8 @@ class AttendanceRecord {
     required this.insideArea,
     required this.wifiMatched,
     required this.totalHours,
+    this.breakExitTime,
+    this.breakReturnTime,
   });
 
   factory AttendanceRecord.fromMap(Map<String, dynamic> data) {
@@ -34,6 +39,12 @@ class AttendanceRecord {
       insideArea: data['insideArea'] ?? false,
       wifiMatched: data['wifiMatched'] ?? false,
       totalHours: (data['totalHours'] as num?)?.toDouble(),
+      breakExitTime: data['breakExitTime'] != null
+          ? (data['breakExitTime'] as Timestamp).toDate()
+          : null,
+      breakReturnTime: data['breakReturnTime'] != null
+          ? (data['breakReturnTime'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -45,6 +56,17 @@ class AttendanceRecord {
       'insideArea': insideArea,
       'wifiMatched': wifiMatched,
       'totalHours': totalHours,
+      'breakExitTime': breakExitTime != null ? Timestamp.fromDate(breakExitTime!) : null,
+      'breakReturnTime': breakReturnTime != null ? Timestamp.fromDate(breakReturnTime!) : null,
     };
+  }
+
+  /// Returns true if entry time is after 2:10 PM (14:10).
+  bool get isLate {
+    if (entryTime == null) return false;
+    final h = entryTime!.hour;
+    final m = entryTime!.minute;
+    // Late if hour > 14 OR (hour == 14 AND minute > 10)
+    return h > 14 || (h == 14 && m > 10);
   }
 }

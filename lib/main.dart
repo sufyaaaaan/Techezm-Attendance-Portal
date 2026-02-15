@@ -11,7 +11,8 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-
+  // Still requesting permission early is fine, or we can move it to where it's needed.
+  // Keeping it here for now as it was before.
   await Geolocator.requestPermission();
 
   runApp(
@@ -26,9 +27,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const SplashScreen(),
+      home: SplashScreen(),
     );
   }
 }

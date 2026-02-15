@@ -55,6 +55,19 @@ class FirestoreService {
         .toList();
   }
 
+  /// Retrieves a single user (employee or admin) by [uid].
+  Future<UserModel?> getUser(String uid) async {
+    // Try employee collection
+    var doc = await _firestore.collection('employees').doc(uid).get();
+    if (doc.exists) return UserModel.fromMap(doc.id, doc.data()!);
+
+    // Try admin collection
+    doc = await _firestore.collection('users').doc(uid).get();
+    if (doc.exists) return UserModel.fromMap(doc.id, doc.data()!);
+
+    return null;
+  }
+
   /// Retrieves attendance records for an [employeeId]. Optionally provide
   /// [startDate] and [endDate] to filter by date range.
   Future<List<AttendanceRecord>> getAttendanceRecords({
@@ -153,9 +166,68 @@ class FirestoreService {
       insideArea: inside,
       wifiMatched: wifiOk,
       totalHours: totalHours,
+      breakExitTime: existing?.breakExitTime,
+      breakReturnTime: existing?.breakReturnTime,
     );
     await docRef.set(record.toMap());
     return record;
+  }
+
+  /// Records break start (exit) or break end (return).
+  /// [isBreakExit]: true = starting break, false = returning from break.
+  Future<AttendanceRecord> recordBreak({
+    required String employeeId,
+    required bool isBreakExit,
+  }) async {
+    final now = DateTime.now();
+    final date = DateTime(now.year, now.month, now.day);
+    final docId = _dateToDocId(date);
+    final docRef = _firestore
+        .collection('attendance')
+        .doc(employeeId)
+        .collection('records')
+        .doc(docId);
+
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      throw Exception("Cannot mark break - no attendance record found for today.");
+    }
+
+    final existing = AttendanceRecord.fromMap(doc.data()!);
+
+    DateTime? breakExit = existing.breakExitTime;
+    DateTime? breakReturn = existing.breakReturnTime;
+
+    if (isBreakExit) {
+      // START BREAK
+      if (breakExit != null) {
+         throw Exception("Break already taken today.");
+      }
+      breakExit = now;
+    } else {
+      // END BREAK
+      if (breakExit == null) {
+        throw Exception("Cannot end break - break not started.");
+      }
+      if (breakReturn != null) {
+        throw Exception("Break already ended.");
+      }
+      breakReturn = now;
+    }
+
+    final updated = AttendanceRecord(
+      date: existing.date,
+      entryTime: existing.entryTime,
+      exitTime: existing.exitTime,
+      insideArea: existing.insideArea,
+      wifiMatched: existing.wifiMatched,
+      totalHours: existing.totalHours,
+      breakExitTime: breakExit,
+      breakReturnTime: breakReturn,
+    );
+
+    await docRef.set(updated.toMap());
+    return updated;
   }
 
   /// Counts the number of employees and calculates attendance statistics for
@@ -173,20 +245,18 @@ class FirestoreService {
       final record = await getAttendanceRecordForDate(emp.id, today);
       if (record != null && record.entryTime != null) {
         present++;
-        // If entry time is after office start + lateThreshold, count as late.
-        // For simplicity assume office starts at 09:00 local time.
-        final officeStart = DateTime(
-            record.entryTime!.year,
-            record.entryTime!.month,
-            record.entryTime!.day,
-            9,
-            0);
-        if (record.entryTime!.isAfter(officeStart.add(lateThreshold))) {
+        if (record.isLate) {
           late++;
         }
       }
     }
-    final absent = totalEmployees - present;
+    int absent = totalEmployees - present;
+    
+    // 🔥 Fix: If today is Sunday, nobody is "absent"
+    if (today.weekday == DateTime.sunday) {
+      absent = 0;
+    }
+
     return {
       'totalEmployees': totalEmployees,
       'present': present,

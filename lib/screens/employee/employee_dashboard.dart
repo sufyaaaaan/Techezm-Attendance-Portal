@@ -193,6 +193,67 @@ class _EmployeeDashboardState extends ConsumerState<EmployeeDashboard> {
   }
 
   // ---------------------------------------------------------------------------
+  // ⭐ MARK BREAK (EXIT / RETURN)
+  // ---------------------------------------------------------------------------
+  Future<void> _markBreak(bool isBreakExit) async {
+    final action = isBreakExit ? "Start Break" : "End Break";
+    final confirm = await _confirmAction(action);
+    if (!confirm || !mounted) return;
+
+    setState(() => _markingAttendance = true);
+
+    try {
+      final userAsync = ref.read(currentUserModelProvider);
+      if (userAsync is! AsyncData || userAsync.value == null) {
+        setState(() => _markingAttendance = false);
+        return;
+      }
+
+      final user = userAsync.value!;
+      final geofence = await ref.read(geofenceSettingsProvider.future);
+      final wifi = await ref.read(wifiSettingsProvider.future);
+
+      // 1. Validate Location & WiFi (Reuse existing logic)
+      final validation = await AttendanceService().validate(
+        geofence: geofence!,
+        allowedWifiName: wifi!.wifiName,
+      );
+
+      setState(() => _validation = validation);
+
+      if (!validation.insideArea || !validation.wifiMatched) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Verification Failed: You must be inside geofence AND on allowed WiFi.')),
+        );
+        setState(() => _markingAttendance = false);
+        return;
+      }
+
+      // 2. Record Break
+      final firestore = ref.read(firestoreServiceProvider);
+      await firestore.recordBreak(
+        employeeId: user.id,
+        isBreakExit: isBreakExit,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("$action Successful!")),
+      );
+
+      // 3. Refresh UI
+      _refreshStatus();
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      setState(() => _markingAttendance = false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // LOADING OVERLAY WIDGET
   // ---------------------------------------------------------------------------
   Widget _buildLoadingOverlay() {
@@ -364,6 +425,8 @@ class _EmployeeDashboardState extends ConsumerState<EmployeeDashboard> {
                 _buildTodaySummary(df, tf),
                 const SizedBox(height: 22),
                 _buildLiveStatusCard(tf),
+                const SizedBox(height: 22),
+                _buildBreakCard(),
               ],
             ),
           ),
@@ -440,26 +503,127 @@ class _EmployeeDashboardState extends ConsumerState<EmployeeDashboard> {
 
           const SizedBox(height: 18),
 
-          Row(
-            children: [
-              Expanded(
-                child: _modernButton(
-                  label: "Mark Entry",
-                  enabled: _todayRecord?.entryTime == null,
-                  onTap: () => _markAttendance(true),
-                ),
+          const SizedBox(height: 18),
+
+          // Live Status Card Content
+          // ... (existing content) ...
+          
+          const SizedBox(height: 18),
+
+          if (_todayRecord?.entryTime != null && _todayRecord?.exitTime != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.green),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _modernButton(
-                  label: "Mark Exit",
-                  enabled: _todayRecord?.entryTime != null &&
-                      _todayRecord?.exitTime == null,
-                  onTap: () => _markAttendance(false),
-                ),
+              child: const Text(
+                "Attendance Completed",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.green, fontWeight: FontWeight.bold),
               ),
-            ],
-          ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: _modernButton(
+                    label: "Mark Entry",
+                    enabled: _todayRecord?.entryTime == null,
+                    onTap: () => _markAttendance(true),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _modernButton(
+                    label: "Mark Exit",
+                    enabled: _todayRecord?.entryTime != null &&
+                        _todayRecord?.exitTime == null,
+                    onTap: () => _markAttendance(false),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBreakCard() {
+    // Only show if Entry is marked
+    if (_todayRecord?.entryTime == null) return const SizedBox();
+
+    bool canStartBreak = _todayRecord?.breakExitTime == null &&
+        _todayRecord?.exitTime == null;
+
+    bool canEndBreak = _todayRecord?.breakExitTime != null &&
+        _todayRecord?.breakReturnTime == null &&
+        _todayRecord?.exitTime == null;
+
+    // If break cycle complete, show status
+    bool breakComplete = _todayRecord?.breakReturnTime != null;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Break Tracking",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+
+          // Info Rows
+          _infoRow("Break Start",
+              _todayRecord?.breakExitTime != null
+                  ? DateFormat('HH:mm').format(_todayRecord!.breakExitTime!)
+                  : "--"),
+          _infoRow("Break End",
+              _todayRecord?.breakReturnTime != null
+                  ? DateFormat('HH:mm').format(_todayRecord!.breakReturnTime!)
+                  : "--"),
+
+          const SizedBox(height: 14),
+
+          if (breakComplete)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.green),
+              ),
+              child: const Text(
+                "Break Completed",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.green, fontWeight: FontWeight.bold),
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: _modernButton(
+                    label: "Start Break",
+                    enabled: canStartBreak,
+                    onTap: () => _markBreak(true),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _modernButton(
+                    label: "End Break",
+                    enabled: canEndBreak,
+                    onTap: () => _markBreak(false),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
