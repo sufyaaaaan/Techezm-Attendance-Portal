@@ -88,6 +88,15 @@ class AdminDashboard extends ConsumerWidget {
       body: FutureBuilder<Map<String, int>>(
         future: firestore.getDashboardStats(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error loading dashboard: \n${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -105,7 +114,7 @@ class AdminDashboard extends ConsumerWidget {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 0.95,
+                  childAspectRatio: 1.25,
                   children: [
                     DashboardCard(
                       label: 'Total Employees',
@@ -130,6 +139,12 @@ class AdminDashboard extends ConsumerWidget {
                       value: stats['late']?.toString() ?? '-',
                       icon: Icons.access_time_outlined,
                       color: Colors.orange,
+                    ),
+                    DashboardCard(
+                      label: 'On Leave',
+                      value: stats['leave']?.toString() ?? '-',
+                      icon: Icons.beach_access_outlined,
+                      color: Colors.purple,
                     ),
                   ],
                 ),

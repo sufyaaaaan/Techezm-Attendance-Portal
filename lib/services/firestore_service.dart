@@ -75,21 +75,34 @@ class FirestoreService {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    Query<Map<String, dynamic>> query = _firestore
+    final query = _firestore
         .collection('attendance')
         .doc(employeeId)
         .collection('records');
 
+    final snapshot = await query.get();
+    
+    // Process and map documents
+    var records = snapshot.docs
+        .map((doc) => AttendanceRecord.fromMap(doc.data(), doc.id))
+        .toList();
+
+    // Local filtering
     if (startDate != null) {
-      query = query.where('date', isGreaterThanOrEqualTo: startDate);
+      // Create a DateTime object representing the start of the required date
+      final start = DateTime(startDate.year, startDate.month, startDate.day);
+      records.retainWhere((r) => r.date.isAfter(start.subtract(const Duration(seconds: 1))));
     }
     if (endDate != null) {
-      query = query.where('date', isLessThanOrEqualTo: endDate);
+      // Create a DateTime object representing the end of the required date
+      final end = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+      records.retainWhere((r) => r.date.isBefore(end.add(const Duration(seconds: 1))));
     }
-    final snapshot = await query.orderBy('date', descending: true).get();
-    return snapshot.docs
-        .map((doc) => AttendanceRecord.fromMap(doc.data()))
-        .toList();
+
+    // Local sorting (descending by date)
+    records.sort((a, b) => b.date.compareTo(a.date));
+
+    return records;
   }
 
   /// Retrieves a single attendance record for an [employeeId] on a specific
@@ -106,7 +119,7 @@ class FirestoreService {
         .get();
 
     if (doc.exists) {
-      return AttendanceRecord.fromMap(doc.data()!);
+      return AttendanceRecord.fromMap(doc.data()!, doc.id);
     }
 
     // Return an empty record instead of null
@@ -141,7 +154,7 @@ class FirestoreService {
     final doc = await docRef.get();
     AttendanceRecord? existing;
     if (doc.exists) {
-      existing = AttendanceRecord.fromMap(doc.data()!);
+      existing = AttendanceRecord.fromMap(doc.data()!, doc.id);
     }
     DateTime? entryTime = existing?.entryTime;
     DateTime? exitTime = existing?.exitTime;
@@ -193,7 +206,7 @@ class FirestoreService {
       throw Exception("Cannot mark break - no attendance record found for today.");
     }
 
-    final existing = AttendanceRecord.fromMap(doc.data()!);
+    final existing = AttendanceRecord.fromMap(doc.data()!, doc.id);
 
     DateTime? breakExit = existing.breakExitTime;
     DateTime? breakReturn = existing.breakReturnTime;
@@ -239,18 +252,23 @@ class FirestoreService {
     final today = DateTime.now();
     int present = 0;
     int late = 0;
+    int leave = 0;
     // iterate employees
     final employees = await _firestore.collection('employees').get();
     for (final emp in employees.docs) {
       final record = await getAttendanceRecordForDate(emp.id, today);
-      if (record != null && record.entryTime != null) {
-        present++;
-        if (record.isLate) {
-          late++;
+      if (record != null) {
+        if (record.leaveType != null && record.leaveType!.isNotEmpty) {
+          leave++;
+        } else if (record.entryTime != null) {
+          present++;
+          if (record.isLate) {
+            late++;
+          }
         }
       }
     }
-    int absent = totalEmployees - present;
+    int absent = totalEmployees - present - leave;
     
     // 🔥 Fix: If today is Sunday, nobody is "absent"
     if (today.weekday == DateTime.sunday) {
@@ -262,6 +280,7 @@ class FirestoreService {
       'present': present,
       'absent': absent,
       'late': late,
+      'leave': leave,
     };
   }
 

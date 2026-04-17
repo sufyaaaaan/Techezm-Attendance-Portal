@@ -67,44 +67,58 @@ class _EmployeeDashboardState extends ConsumerState<EmployeeDashboard> {
       _recordLoading = true;
     });
 
-    final userAsync = ref.read(currentUserModelProvider);
-    if (userAsync is! AsyncData || userAsync.value == null) {
-      setState(() {
-        _loadingValidation = false;
-        _recordLoading = false;
-      });
-      return;
-    }
+    try {
+      final userAsync = ref.read(currentUserModelProvider);
+      if (userAsync is! AsyncData || userAsync.value == null) {
+        setState(() {
+          _loadingValidation = false;
+          _recordLoading = false;
+        });
+        return;
+      }
 
-    final user = userAsync.value!;
-    final geofence = await ref.read(geofenceSettingsProvider.future);
-    final wifi = await ref.read(wifiSettingsProvider.future);
+      final user = userAsync.value!;
+      final geofence = await ref.read(geofenceSettingsProvider.future);
+      final wifi = await ref.read(wifiSettingsProvider.future);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (geofence != null && wifi != null) {
-      final result = await AttendanceService().validate(
-        geofence: geofence,
-        allowedWifiName: wifi.wifiName,
+      if (geofence != null && wifi != null) {
+        final result = await AttendanceService().validate(
+          geofence: geofence,
+          allowedWifiName: wifi.wifiName,
+        );
+
+        if (!mounted) return;
+        setState(() => _validation = result);
+      }
+
+      final firestore = ref.read(firestoreServiceProvider);
+      final record = await firestore.getAttendanceRecordForDate(
+        user.id,
+        DateTime.now(),
       );
 
       if (!mounted) return;
-      setState(() => _validation = result);
+
+      setState(() {
+        _todayRecord = record;
+      });
+    } catch (e) {
+      // In case of error (e.g. invalid document schema), stop loading state
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading dashboard: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingValidation = false;
+          _recordLoading = false;
+        });
+      }
     }
-
-    final firestore = ref.read(firestoreServiceProvider);
-    final record = await firestore.getAttendanceRecordForDate(
-      user.id,
-      DateTime.now(),
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _todayRecord = record;
-      _loadingValidation = false;
-      _recordLoading = false;
-    });
   }
 
   // ---------------------------------------------------------------------------

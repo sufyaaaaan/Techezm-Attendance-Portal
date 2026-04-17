@@ -83,6 +83,15 @@ class AttendanceHistoryScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 12),
 
+                          if (r.leaveType != null && r.leaveType!.isNotEmpty)
+                            _buildInfoRow(
+                              Icons.event_note,
+                              "Leave Status",
+                              r.leaveType!.toUpperCase(),
+                              iconColor: Colors.purple,
+                              valueColor: Colors.purple,
+                            ),
+
                           // 🔹 Entry (blue)
                           _buildInfoRow(
                             Icons.login,

@@ -30,7 +30,7 @@ class UserModel {
       username: data['username'] ?? '',
       email: data['email'] ?? '',
       role: data['role'] ?? '',
-      createdAt: data['createdAt'] != null 
+      createdAt: data['createdAt'] is Timestamp 
           ? (data['createdAt'] as Timestamp).toDate() 
           : DateTime.now(),
     );
